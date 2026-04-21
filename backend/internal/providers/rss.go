@@ -163,11 +163,11 @@ type parsedFeed struct {
 }
 
 type feedEntry struct {
-	ID         string
-	Title      string
-	Link       string
-	Updated    time.Time
-	IsOldStyle bool
+	ID      string
+	Title   string
+	Link    string
+	Body    string
+	Updated time.Time
 }
 
 type rssEnvelope struct {
@@ -176,10 +176,11 @@ type rssEnvelope struct {
 		Title string `xml:"title"`
 		Link  string `xml:"link"`
 		Items []struct {
-			Title   string `xml:"title"`
-			Link    string `xml:"link"`
-			GUID    string `xml:"guid"`
-			PubDate string `xml:"pubDate"`
+			Title       string `xml:"title"`
+			Link        string `xml:"link"`
+			GUID        string `xml:"guid"`
+			PubDate     string `xml:"pubDate"`
+			Description string `xml:"description"`
 		} `xml:"item"`
 	} `xml:"channel"`
 }
@@ -199,6 +200,8 @@ type atomEnvelope struct {
 			Href string `xml:"href,attr"`
 			Rel  string `xml:"rel,attr"`
 		} `xml:"link"`
+		Summary string `xml:"summary"`
+		Content string `xml:"content"`
 	} `xml:"entry"`
 }
 
@@ -239,6 +242,7 @@ func parseFeed(body []byte) (*parsedFeed, error) {
 				ID:      firstNonEmpty(it.GUID, it.Link, it.Title),
 				Title:   normalizeText(it.Title),
 				Link:    strings.TrimSpace(it.Link),
+				Body:    it.Description,
 				Updated: parseFeedTime(it.PubDate),
 			})
 		}
@@ -266,6 +270,7 @@ func parseFeed(body []byte) (*parsedFeed, error) {
 				ID:      firstNonEmpty(e.ID, link, e.Title),
 				Title:   normalizeText(e.Title),
 				Link:    link,
+				Body:    firstNonEmpty(e.Summary, e.Content),
 				Updated: parseFeedTime(e.Updated),
 			})
 		}
@@ -291,7 +296,7 @@ func feedToStatus(feed *parsedFeed, window time.Duration) Status {
 		if !e.Updated.IsZero() && e.Updated.Before(cutoff) {
 			continue
 		}
-		cls := classifyFeedTitle(e.Title)
+		cls := classifyFeedEntry(e.Title, e.Body)
 		if cls.resolved {
 			continue
 		}
@@ -336,13 +341,41 @@ var (
 	maintenancePrefRE = regexp.MustCompile(`(?i)^(scheduled|maintenance|planned)\b`)
 )
 
-func classifyFeedTitle(title string) titleClass {
+// resolutionBodyRE matches past-tense markers in the description that
+// indicate the incident has been resolved, even when the feed's title was
+// posted at the start and never updated (Slack's RSS works this way — the
+// item title stays "Incident: foo", but the body narrates the resolution).
+// Deliberately narrow to avoid false positives from active updates like
+// "we are working to resolve this".
+var resolutionBodyRE = regexp.MustCompile(
+	`(?i)\b(` +
+		`(has|have) been (resolved|fixed|mitigated|restored)|` +
+		`is (now|fully) (resolved|operational|restored)|` +
+		`issue (has been )?resolved|` +
+		`incident (has been |is now )?resolved|` +
+		`(resolution|resolved) at\b|` +
+		`^resolved\b|` + // Statuspage.io body often starts with "Resolved - ..."
+		`fully (caught up|restored|operational)` +
+		`)`)
+
+func classifyFeedEntry(title, body string) titleClass {
 	t := strings.TrimSpace(title)
+
+	// Title prefix is the primary signal.
 	switch {
 	case resolvedPrefixRE.MatchString(t):
 		return titleClass{indicator: IndicatorOperational, label: "resolved", resolved: true}
 	case maintenancePrefRE.MatchString(t):
 		return titleClass{indicator: IndicatorMaintenance, label: "maintenance"}
+	}
+
+	// Body can upgrade an "active-looking" title to resolved when the narrative
+	// clearly describes a completed incident.
+	if body != "" && resolutionBodyRE.MatchString(body) {
+		return titleClass{indicator: IndicatorOperational, label: "resolved", resolved: true}
+	}
+
+	switch {
 	case outagePrefixRE.MatchString(t):
 		return titleClass{indicator: IndicatorCritical, label: "outage"}
 	case incidentPrefixRE.MatchString(t):
