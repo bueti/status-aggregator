@@ -66,7 +66,7 @@ func (s *Store) List(ctx context.Context) ([]providers.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var out []providers.Config
 	for rows.Next() {
