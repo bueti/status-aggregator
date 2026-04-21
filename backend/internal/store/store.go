@@ -10,7 +10,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/bbu/status-aggregator/backend/internal/providers"
+	"github.com/bueti/status-aggregator/backend/internal/providers"
 )
 
 var ErrNotFound = errors.New("provider not found")
@@ -66,7 +66,7 @@ func (s *Store) List(ctx context.Context) ([]providers.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var out []providers.Config
 	for rows.Next() {

@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  docker:
+    name: build & push image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+
+      - name: Build & push
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            COMMIT=${{ github.sha }}
+
+  helm:
+    name: publish helm chart
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
+        with:
+          version: latest
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Sync chart versions to tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Chart version: ${VERSION}"
+          sed -i "s/^version:.*/version: ${VERSION}/" charts/status-aggregator/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" charts/status-aggregator/Chart.yaml
+          # Default image tag to the chart version
+          sed -i "s#^\(\s*repository:\s*\).*#\1${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}#" charts/status-aggregator/values.yaml
+
+      - name: Lint
+        run: helm lint charts/status-aggregator
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          helm package charts/status-aggregator -d dist/
+
+      - name: Push to GHCR
+        run: |
+          helm push dist/status-aggregator-*.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts
+
+  github-release:
+    name: github release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [docker, helm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Verify tag is on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::tag ${GITHUB_REF_NAME} is not on main"
+            exit 1
+          fi
+      - uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body: |
+            ## Artifacts
+
+            - Docker image: `ghcr.io/${{ github.repository }}:${{ github.ref_name }}`
+            - Helm chart: `oci://ghcr.io/${{ github.repository_owner }}/charts/status-aggregator --version ${{ github.ref_name }}`
+
+            ```bash
+            helm install status \
+              oci://ghcr.io/${{ github.repository_owner }}/charts/status-aggregator \
+              --version ${GITHUB_REF_NAME#v}
+            ```

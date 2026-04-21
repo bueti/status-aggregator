@@ -15,10 +15,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/bbu/status-aggregator/backend/internal/aggregator"
-	"github.com/bbu/status-aggregator/backend/internal/api"
-	"github.com/bbu/status-aggregator/backend/internal/config"
-	"github.com/bbu/status-aggregator/backend/internal/store"
+	"github.com/bueti/status-aggregator/backend/internal/aggregator"
+	"github.com/bueti/status-aggregator/backend/internal/api"
+	"github.com/bueti/status-aggregator/backend/internal/config"
+	"github.com/bueti/status-aggregator/backend/internal/store"
+	"github.com/bueti/status-aggregator/backend/internal/webui"
 )
 
 func main() {
@@ -39,7 +40,7 @@ func main() {
 		logger.Error("open store", "err", err)
 		os.Exit(1)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -72,6 +73,11 @@ func main() {
 		AdminToken: adminToken,
 	}
 	server.Register(humaAPI)
+
+	if ui := webui.Handler(); ui != nil {
+		router.NotFound(ui.ServeHTTP)
+		logger.Info("serving embedded web UI at /")
+	}
 
 	srv := &http.Server{
 		Addr:              addr,
