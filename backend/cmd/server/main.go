@@ -1,0 +1,133 @@
+package main
+
+import (
+	"context"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/bbu/status-aggregator/backend/internal/aggregator"
+	"github.com/bbu/status-aggregator/backend/internal/api"
+	"github.com/bbu/status-aggregator/backend/internal/config"
+	"github.com/bbu/status-aggregator/backend/internal/store"
+)
+
+func main() {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
+
+	addr := envOr("STATUS_ADDR", ":8080")
+	dbPath := envOr("STATUS_DB_PATH", "data/providers.db")
+	adminToken := os.Getenv("STATUS_ADMIN_TOKEN")
+
+	if err := os.MkdirAll(dirOf(dbPath), 0o755); err != nil {
+		logger.Error("mkdir data dir", "err", err)
+		os.Exit(1)
+	}
+
+	s, err := store.Open(dbPath)
+	if err != nil {
+		logger.Error("open store", "err", err)
+		os.Exit(1)
+	}
+	defer s.Close()
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	if err := s.SeedIfEmpty(ctx, config.DefaultProviders()); err != nil {
+		logger.Error("seed defaults", "err", err)
+		os.Exit(1)
+	}
+
+	agg := aggregator.New(s, logger)
+	go func() {
+		if err := agg.Run(ctx); err != nil {
+			logger.Error("aggregator stopped", "err", err)
+		}
+	}()
+
+	router := chi.NewRouter()
+	router.Use(middleware.RequestID)
+	router.Use(middleware.RealIP)
+	router.Use(middleware.Recoverer)
+	router.Use(corsMiddleware)
+
+	humaCfg := huma.DefaultConfig("Status Aggregator", "0.1.0")
+	humaCfg.Info.Description = "Aggregates third-party Statuspage.io feeds (GitHub, depot.dev, Grafana Cloud, etc.)."
+	humaAPI := humachi.New(router, humaCfg)
+
+	server := &api.Server{
+		Agg:        agg,
+		Store:      s,
+		AdminToken: adminToken,
+	}
+	server.Register(humaAPI)
+
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+	}()
+
+	if adminToken == "" {
+		logger.Warn("STATUS_ADMIN_TOKEN is unset; write endpoints will return 503")
+	}
+	logger.Info("listening", "addr", addr, "docs", "http://"+humanAddr(addr)+"/docs")
+
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Error("listen", "err", err)
+		os.Exit(1)
+	}
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func envOr(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
+
+func dirOf(p string) string {
+	i := strings.LastIndex(p, "/")
+	if i < 0 {
+		return "."
+	}
+	return p[:i]
+}
+
+func humanAddr(a string) string {
+	if strings.HasPrefix(a, ":") {
+		return "localhost" + a
+	}
+	return a
+}

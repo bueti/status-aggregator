@@ -1,0 +1,23 @@
+bin/
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Go
+backend/tmp/
+
+# Node
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/build/
+frontend/.vite/
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+
+# Env
+.env
+.env.local
