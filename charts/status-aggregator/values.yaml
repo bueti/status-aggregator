@@ -1,0 +1,90 @@
+image:
+  repository: ghcr.io/bueti/status-aggregator
+  tag: ""            # defaults to .Chart.AppVersion when empty
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicaCount: 1      # SQLite — keep at 1
+
+# STATUS_ADMIN_TOKEN for the backend's write endpoints.
+# If adminToken.value is set, a Secret is created.
+# If adminToken.existingSecret is set, it takes precedence.
+adminToken:
+  value: ""
+  existingSecret: ""
+  existingSecretKey: admin-token
+
+# Extra env vars passed to the container.
+env: {}
+  # STATUS_ADDR: ":8080"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: status.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+    # - secretName: status-tls
+    #   hosts: [status.example.com]
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessModes: [ReadWriteOnce]
+  size: 1Gi
+  existingClaim: ""
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+probes:
+  liveness:
+    httpGet:
+      path: /api/healthz
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readiness:
+    httpGet:
+      path: /api/healthz
+      port: http
+    initialDelaySeconds: 2
+    periodSeconds: 5
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations: {}
+podLabels: {}

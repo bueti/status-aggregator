@@ -3,7 +3,7 @@ package config
 import (
 	"encoding/json"
 
-	"github.com/bbu/status-aggregator/backend/internal/providers"
+	"github.com/bueti/status-aggregator/backend/internal/providers"
 )
 
 func DefaultProviders() []providers.Config {

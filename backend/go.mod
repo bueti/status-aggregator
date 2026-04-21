@@ -1,4 +1,4 @@
-module github.com/bbu/status-aggregator/backend
+module github.com/bueti/status-aggregator/backend
 
 go 1.26.1
 

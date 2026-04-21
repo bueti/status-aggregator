@@ -1,0 +1,11 @@
+apiVersion: v2
+name: status-aggregator
+description: Aggregates third-party Statuspage.io feeds into a single dashboard.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/bueti/status-aggregator
+sources:
+  - https://github.com/bueti/status-aggregator
+maintainers:
+  - name: bueti

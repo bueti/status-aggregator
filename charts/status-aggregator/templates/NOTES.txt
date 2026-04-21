@@ -1,0 +1,21 @@
+Status Aggregator was installed.
+
+{{- if .Values.ingress.enabled }}
+Available at:
+{{- range .Values.ingress.hosts }}
+  http(s)://{{ .host }}
+{{- end }}
+{{- else if eq .Values.service.type "LoadBalancer" }}
+Grab the external IP with:
+  kubectl -n {{ .Release.Namespace }} get svc {{ include "status-aggregator.fullname" . }}
+{{- else }}
+Port-forward to reach it:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "status-aggregator.fullname" . }} 8080:{{ .Values.service.port }}
+Then open http://localhost:8080
+{{- end }}
+
+{{- if not (or .Values.adminToken.value .Values.adminToken.existingSecret) }}
+
+WARNING: no admin token configured — write endpoints will return 503.
+Set one with: helm upgrade ... --set adminToken.value=YOUR_TOKEN
+{{- end }}

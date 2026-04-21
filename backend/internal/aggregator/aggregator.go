@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bbu/status-aggregator/backend/internal/providers"
-	"github.com/bbu/status-aggregator/backend/internal/store"
+	"github.com/bueti/status-aggregator/backend/internal/providers"
+	"github.com/bueti/status-aggregator/backend/internal/store"
 )
 
 type Entry struct {

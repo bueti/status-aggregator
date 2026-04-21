@@ -10,7 +10,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/bbu/status-aggregator/backend/internal/providers"
+	"github.com/bueti/status-aggregator/backend/internal/providers"
 )
 
 var ErrNotFound = errors.New("provider not found")

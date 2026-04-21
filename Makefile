@@ -1,4 +1,4 @@
-.PHONY: dev dev-backend dev-frontend gen build check clean
+.PHONY: dev dev-backend dev-frontend gen build check clean docker-build docker-run helm-lint helm-template
 
 STATUS_ADMIN_TOKEN ?= dev-token
 STATUS_DB_PATH    ?= $(CURDIR)/data/providers.db
@@ -26,3 +26,21 @@ check:
 
 clean:
 	rm -rf bin data frontend/.svelte-kit frontend/build
+
+IMAGE ?= ghcr.io/bueti/status-aggregator:dev
+
+docker-build:
+	docker build -t $(IMAGE) .
+
+docker-run:
+	mkdir -p data
+	docker run --rm -p 8080:8080 \
+		-e STATUS_ADMIN_TOKEN=$(STATUS_ADMIN_TOKEN) \
+		-v $(CURDIR)/data:/data \
+		$(IMAGE)
+
+helm-lint:
+	helm lint charts/status-aggregator
+
+helm-template:
+	helm template status charts/status-aggregator

@@ -80,6 +80,50 @@ This runs `openapi-typescript` against `/openapi.json`.
 - Frontend refreshes `/api/overview` every 30s.
 - On fetch failure, the cache keeps the last-known status and marks it `stale` after `3 * poll_interval`.
 
+## Docker
+
+A multi-stage `Dockerfile` at the repo root builds the frontend, embeds it in the Go binary, and ships a distroless image. CI publishes it to `ghcr.io/bueti/status-aggregator` on every push to `main` and on version tags (`v*`).
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e STATUS_ADMIN_TOKEN=change-me \
+  -v status-data:/data \
+  ghcr.io/bueti/status-aggregator:latest
+```
+
+Local build:
+
+```bash
+make docker-build
+make docker-run          # runs the image on :8080 with a local ./data volume
+```
+
+## Helm
+
+A chart lives at `charts/status-aggregator`. It ships a single-replica `Deployment` (SQLite is a single-writer store), a `PersistentVolumeClaim` for `/data`, a `Service`, an optional `Ingress`, and a `Secret` for the admin token.
+
+On tag push, CI publishes the chart as an OCI artifact to `ghcr.io/bueti/charts/status-aggregator`:
+
+```bash
+helm install status \
+  oci://ghcr.io/bueti/charts/status-aggregator \
+  --version 0.1.0 \
+  --set adminToken.value=change-me
+```
+
+Or install from the local repo checkout:
+
+```bash
+helm install status charts/status-aggregator \
+  --set adminToken.value=change-me \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0].host=status.example.com \
+  --set ingress.hosts[0].paths[0].path=/ \
+  --set ingress.hosts[0].paths[0].pathType=Prefix
+```
+
+See `charts/status-aggregator/values.yaml` for the full set of knobs.
+
 ## Out of scope for v1
 
 Auth beyond the single admin token · notifications · historical uptime graphs · non-Statuspage feed kinds (extend the registry to add RSS / custom JSON).

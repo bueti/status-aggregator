@@ -12,9 +12,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/bbu/status-aggregator/backend/internal/aggregator"
-	"github.com/bbu/status-aggregator/backend/internal/providers"
-	"github.com/bbu/status-aggregator/backend/internal/store"
+	"github.com/bueti/status-aggregator/backend/internal/aggregator"
+	"github.com/bueti/status-aggregator/backend/internal/providers"
+	"github.com/bueti/status-aggregator/backend/internal/store"
 )
 
 type Server struct {
