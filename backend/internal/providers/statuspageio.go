@@ -114,13 +114,13 @@ type statuspageSummary struct {
 		Status string `json:"status"`
 	} `json:"components"`
 	Incidents []struct {
-		ID         string    `json:"id"`
-		Name       string    `json:"name"`
-		Status     string    `json:"status"`
-		Impact     string    `json:"impact"`
-		Shortlink  string    `json:"shortlink"`
-		UpdatedAt  time.Time `json:"updated_at"`
-		Resolved   *time.Time `json:"resolved_at"`
+		ID        string     `json:"id"`
+		Name      string     `json:"name"`
+		Status    string     `json:"status"`
+		Impact    string     `json:"impact"`
+		Shortlink string     `json:"shortlink"`
+		UpdatedAt time.Time  `json:"updated_at"`
+		Resolved  *time.Time `json:"resolved_at"`
 	} `json:"incidents"`
 }
 
