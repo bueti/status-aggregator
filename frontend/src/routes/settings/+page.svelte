@@ -245,7 +245,7 @@
 		</label>
 
 		{#if currentKind}
-			{#each currentKind.fields as f (f.name)}
+			{#each currentKind.fields ?? [] as f (f.name)}
 				<label class="block">
 					<span class="text-xs text-white/60">{f.label}</span>
 					<input
