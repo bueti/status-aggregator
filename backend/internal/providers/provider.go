@@ -48,6 +48,7 @@ type Kind string
 const (
 	KindStatuspageIO Kind = "statuspage_io"
 	KindAuth0        Kind = "auth0"
+	KindRSS          Kind = "rss"
 )
 
 type Config struct {
