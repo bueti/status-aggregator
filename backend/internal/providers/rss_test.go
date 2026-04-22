@@ -2,36 +2,38 @@ package providers
 
 import "testing"
 
-func TestNormalizeHTTPURL(t *testing.T) {
+func TestParseHTTPURL(t *testing.T) {
 	cases := []struct {
+		name    string
 		in      string
 		want    string
 		wantErr bool
 	}{
-		{in: "https://example.com/feed.rss", want: "https://example.com/feed.rss"},
-		{in: "http://example.com/feed.rss", want: "http://example.com/feed.rss"},
-		{in: " https://example.com/feed.rss ", want: "https://example.com/feed.rss"},
-		{in: "example.com/feed.rss", want: "https://example.com/feed.rss"},
-		{in: "status.auth0.com/rss?domain=x.y.z", want: "https://status.auth0.com/rss?domain=x.y.z"},
-		{in: "//example.com/feed", want: "https://example.com/feed"},
-		{in: "", wantErr: true},
-		{in: "   ", wantErr: true},
-		{in: "ftp://example.com/feed", wantErr: true},
-		{in: "://nope", wantErr: true},
+		{name: "https kept", in: "https://example.com/feed.rss", want: "https://example.com/feed.rss"},
+		{name: "http kept", in: "http://example.com/feed.rss", want: "http://example.com/feed.rss"},
+		{name: "uppercase scheme canonicalized", in: "HTTPS://example.com/feed.rss", want: "https://example.com/feed.rss"},
+		{name: "surrounding whitespace", in: " https://example.com/feed.rss ", want: "https://example.com/feed.rss"},
+		{name: "bare hostname", in: "example.com/feed.rss", want: "https://example.com/feed.rss"},
+		{name: "bare host with query", in: "status.auth0.com/rss?domain=x.y.z", want: "https://status.auth0.com/rss?domain=x.y.z"},
+		{name: "scheme-relative", in: "//example.com/feed", want: "https://example.com/feed"},
+		{name: "bare host with embedded scheme in query", in: "example.com?redirect=http://other", want: "https://example.com?redirect=http://other"},
+		{name: "empty", in: "", wantErr: true},
+		{name: "whitespace only", in: "   ", wantErr: true},
+		{name: "non-http scheme", in: "ftp://example.com/feed", wantErr: true},
 	}
 	for _, tc := range cases {
-		t.Run(tc.in, func(t *testing.T) {
-			got, err := normalizeHTTPURL(tc.in)
+		t.Run(tc.name, func(t *testing.T) {
+			u, err := parseHTTPURL("url", tc.in)
 			if tc.wantErr {
 				if err == nil {
-					t.Errorf("want error, got %q", got)
+					t.Errorf("want error, got %q", u)
 				}
 				return
 			}
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if got != tc.want {
+			if got := u.String(); got != tc.want {
 				t.Errorf("got %q, want %q", got, tc.want)
 			}
 		})

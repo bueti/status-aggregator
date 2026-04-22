@@ -32,11 +32,6 @@ func (f *auth0Factory) Build(cfg Config) (Provider, error) {
 	return &auth0Provider{cfg: cfg, client: sharedHTTP}, nil
 }
 
-func (f *auth0Factory) Validate(ctx context.Context, cfg Config) error {
-	_, err := fetchAuth0(ctx, sharedHTTP)
-	return err
-}
-
 type auth0Provider struct {
 	cfg    Config
 	client *http.Client

@@ -112,38 +112,45 @@ func (f *rssFactory) parse(cfg Config) (rssParams, error) {
 	if err := json.Unmarshal(cfg.Params, &p); err != nil {
 		return p, fmt.Errorf("invalid params: %w", err)
 	}
-	normalized, err := normalizeHTTPURL(p.FeedURL)
+	u, err := parseHTTPURL("feed_url", p.FeedURL)
 	if err != nil {
-		return p, fmt.Errorf("feed_url: %w", err)
+		return p, err
 	}
-	p.FeedURL = normalized
+	p.FeedURL = u.String()
 	return p, nil
 }
 
-// normalizeHTTPURL trims whitespace, auto-prepends https:// to scheme-less
-// input (the common paste-a-bare-hostname case), and rejects anything that
-// doesn't end up as a valid http(s) URL with a host.
-func normalizeHTTPURL(s string) (string, error) {
+// schemePrefixRE matches an RFC 3986 scheme followed by "://" at the start of
+// a string. Used to distinguish "user already typed a scheme" from the bare
+// hostname / path case.
+var schemePrefixRE = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.\-]*://`)
+
+// parseHTTPURL trims whitespace, auto-prepends https:// to scheme-less input
+// (the common paste-a-bare-hostname case), and returns the parsed URL. Errors
+// are prefixed with field so callers don't need to wrap.
+func parseHTTPURL(field, s string) (*url.URL, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return "", fmt.Errorf("is required")
+		return nil, fmt.Errorf("%s is required", field)
 	}
 	// "//host/path" (scheme-relative) and "host/path" (bare) both become
-	// https://host/path. A real http:// or https:// prefix is left alone.
-	if !strings.Contains(s, "://") {
+	// https://host/path. Any existing scheme is left to url.Parse so a non-http
+	// scheme is reported as "must be http or https" rather than silently
+	// wrapped in a second https://.
+	if !schemePrefixRE.MatchString(s) {
 		s = "https://" + strings.TrimPrefix(s, "//")
 	}
 	u, err := url.Parse(s)
 	if err != nil {
-		return "", fmt.Errorf("invalid URL: %w", err)
+		return nil, fmt.Errorf("%s: invalid URL: %w", field, err)
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return "", fmt.Errorf("must be http or https (got %q)", u.Scheme)
+		return nil, fmt.Errorf("%s: must be http or https (got %q)", field, u.Scheme)
 	}
 	if u.Host == "" {
-		return "", fmt.Errorf("must include a host")
+		return nil, fmt.Errorf("%s: must include a host", field)
 	}
-	return u.String(), nil
+	return u, nil
 }
 
 func (f *rssFactory) Build(cfg Config) (Provider, error) {
@@ -151,16 +158,12 @@ func (f *rssFactory) Build(cfg Config) (Provider, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &rssProvider{cfg: cfg, params: p, client: sharedHTTP}, nil
-}
-
-func (f *rssFactory) Validate(ctx context.Context, cfg Config) error {
-	p, err := f.parse(cfg)
+	raw, err := json.Marshal(p)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("marshal params: %w", err)
 	}
-	_, err = fetchFeed(ctx, sharedHTTP, p.FeedURL)
-	return err
+	cfg.Params = raw
+	return &rssProvider{cfg: cfg, params: p, client: sharedHTTP}, nil
 }
 
 type rssProvider struct {

@@ -296,7 +296,7 @@ func (s *Server) createProvider(ctx context.Context, in *CreateProviderInput) (*
 	if err := s.checkAdmin(in.Authorization); err != nil {
 		return nil, err
 	}
-	cfg, err := s.prepareConfig(ctx, in.Body, true)
+	cfg, err := s.prepareConfig(in.Body, true)
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +336,7 @@ func (s *Server) updateProvider(ctx context.Context, in *UpdateProviderInput) (*
 	}
 	body := in.Body
 	body.ID = in.ID
-	cfg, err := s.prepareConfig(ctx, body, false)
+	cfg, err := s.prepareConfig(body, false)
 	if err != nil {
 		return nil, err
 	}
@@ -414,9 +414,6 @@ func (s *Server) validateProvider(ctx context.Context, in *ValidateProviderInput
 	factory, err := providers.Lookup(cfg.Kind)
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
-	}
-	if err := factory.Validate(ctx, cfg); err != nil {
-		return nil, huma.Error400BadRequest("validation failed: " + err.Error())
 	}
 	p, err := factory.Build(cfg)
 	if err != nil {
@@ -500,9 +497,11 @@ func normalizeConfig(b ProviderBody, allowDeriveID bool) (providers.Config, erro
 }
 
 // prepareConfig normalizes the body and runs a schema-only check via
-// factory.Build. Network reachability is out of scope here — use the dedicated
-// /api/providers/validate endpoint for that.
-func (s *Server) prepareConfig(_ context.Context, b ProviderBody, allowDeriveID bool) (providers.Config, error) {
+// factory.Build. The returned config carries whatever canonical form the
+// factory produced (e.g. URLs get a scheme prepended), so callers should
+// persist this value rather than the raw body.Params. Network reachability
+// is out of scope here — use /api/providers/validate for that.
+func (s *Server) prepareConfig(b ProviderBody, allowDeriveID bool) (providers.Config, error) {
 	cfg, err := normalizeConfig(b, allowDeriveID)
 	if err != nil {
 		return cfg, huma.Error400BadRequest(err.Error())
@@ -511,8 +510,9 @@ func (s *Server) prepareConfig(_ context.Context, b ProviderBody, allowDeriveID 
 	if err != nil {
 		return cfg, huma.Error400BadRequest(err.Error())
 	}
-	if _, err := factory.Build(cfg); err != nil {
+	p, err := factory.Build(cfg)
+	if err != nil {
 		return cfg, huma.Error400BadRequest(err.Error())
 	}
-	return cfg, nil
+	return p.Config(), nil
 }
