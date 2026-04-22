@@ -5,7 +5,12 @@ image:
 
 imagePullSecrets: []
 
-replicaCount: 1      # SQLite — keep at 1
+# Must stay at 1. The backend uses an embedded SQLite file on a
+# ReadWriteOnce PVC: only one pod can mount the volume, and SQLite's
+# single-writer model would corrupt the DB if multiple processes wrote
+# concurrently anyway. Scaling horizontally requires switching storage
+# backends first.
+replicaCount: 1
 
 # STATUS_ADMIN_TOKEN for the backend's write endpoints.
 # If adminToken.value is set, a Secret is created.

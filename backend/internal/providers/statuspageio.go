@@ -115,10 +115,6 @@ type statuspageSummary struct {
 	} `json:"incidents"`
 }
 
-var sharedHTTP = &http.Client{
-	Timeout: 10 * time.Second,
-}
-
 func fetchSummary(ctx context.Context, client *http.Client, p statuspageIOParams) (*statuspageSummary, error) {
 	u, err := p.summaryURL()
 	if err != nil {
