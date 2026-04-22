@@ -1,12 +1,12 @@
 package providers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -73,8 +73,24 @@ type auth0Payload struct {
 	} `json:"props"`
 }
 
-var auth0NextDataRE = regexp.MustCompile(
-	`(?s)<script id="__NEXT_DATA__" type="application/json">(.*?)</script>`)
+// Plain byte-scan instead of a regex: the body can be several MB and a
+// backtracking `.*?` match scales badly on adversarial input.
+var (
+	auth0NextDataOpen  = []byte(`<script id="__NEXT_DATA__" type="application/json">`)
+	auth0NextDataClose = []byte(`</script>`)
+)
+
+func extractAuth0NextData(body []byte) ([]byte, error) {
+	_, after, ok := bytes.Cut(body, auth0NextDataOpen)
+	if !ok {
+		return nil, fmt.Errorf("auth0: __NEXT_DATA__ not found on page (layout may have changed)")
+	}
+	payload, _, ok := bytes.Cut(after, auth0NextDataClose)
+	if !ok {
+		return nil, fmt.Errorf("auth0: __NEXT_DATA__ close tag not found")
+	}
+	return payload, nil
+}
 
 func fetchAuth0(ctx context.Context, client *http.Client) (*auth0Payload, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, auth0StatusURL, nil)
@@ -98,12 +114,12 @@ func fetchAuth0(ctx context.Context, client *http.Client) (*auth0Payload, error)
 		return nil, err
 	}
 
-	m := auth0NextDataRE.FindSubmatch(body)
-	if len(m) < 2 {
-		return nil, fmt.Errorf("auth0: __NEXT_DATA__ not found on page (layout may have changed)")
+	raw, err := extractAuth0NextData(body)
+	if err != nil {
+		return nil, err
 	}
 	var p auth0Payload
-	if err := json.Unmarshal(m[1], &p); err != nil {
+	if err := json.Unmarshal(raw, &p); err != nil {
 		return nil, fmt.Errorf("auth0: decode __NEXT_DATA__: %w", err)
 	}
 	if len(p.Props.PageProps.ActiveIncidents) == 0 {

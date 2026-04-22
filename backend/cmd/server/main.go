@@ -22,6 +22,11 @@ import (
 	"github.com/bueti/status-aggregator/backend/internal/webui"
 )
 
+// Cap on request body size for all API endpoints. JSON provider configs are
+// typically <1 KB; 64 KiB is generous headroom without letting an attacker
+// stream megabytes into the decoder.
+const defaultMaxBodyBytes int64 = 64 << 10
+
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
@@ -29,6 +34,8 @@ func main() {
 	addr := envOr("STATUS_ADDR", ":8080")
 	dbPath := envOr("STATUS_DB_PATH", "data/providers.db")
 	adminToken := os.Getenv("STATUS_ADMIN_TOKEN")
+	corsOrigins := parseOrigins(os.Getenv("STATUS_CORS_ORIGIN"))
+	maxBodyBytes := defaultMaxBodyBytes
 
 	if err := os.MkdirAll(dirOf(dbPath), 0o755); err != nil {
 		logger.Error("mkdir data dir", "err", err)
@@ -61,7 +68,12 @@ func main() {
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(middleware.Recoverer)
-	router.Use(corsMiddleware)
+	router.Use(corsMiddleware(corsOrigins))
+	router.Use(bodyLimitMiddleware(maxBodyBytes))
+
+	if len(corsOrigins) > 0 {
+		logger.Info("CORS enabled", "origins", corsOriginList(corsOrigins))
+	}
 
 	humaCfg := huma.DefaultConfig("Status Aggregator", "0.1.0")
 	humaCfg.Info.Description = "Aggregates third-party Statuspage.io feeds (GitHub, depot.dev, Grafana Cloud, etc.)."
@@ -103,17 +115,59 @@ func main() {
 	}
 }
 
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
+// corsMiddleware echoes Access-Control-Allow-Origin only for origins in the
+// configured allowlist. When allowed is empty, CORS is disabled entirely —
+// appropriate for the production setup where the UI is served from the same
+// origin as the API. Set STATUS_CORS_ORIGIN to a comma-separated list of
+// origins (e.g. http://localhost:5173) to enable cross-origin access in dev.
+func corsMiddleware(allowed map[string]bool) func(http.Handler) http.Handler {
+	if len(allowed) == 0 {
+		return func(next http.Handler) http.Handler { return next }
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if origin := r.Header.Get("Origin"); origin != "" && allowed[origin] {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+				w.Header().Add("Vary", "Origin")
+			}
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func bodyLimitMiddleware(max int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Body != nil {
+				r.Body = http.MaxBytesReader(w, r.Body, max)
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func parseOrigins(s string) map[string]bool {
+	out := map[string]bool{}
+	for _, o := range strings.Split(s, ",") {
+		if o = strings.TrimSpace(o); o != "" {
+			out[o] = true
 		}
-		next.ServeHTTP(w, r)
-	})
+	}
+	return out
+}
+
+func corsOriginList(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for o := range m {
+		out = append(out, o)
+	}
+	return out
 }
 
 func envOr(k, def string) string {

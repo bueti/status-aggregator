@@ -103,14 +103,24 @@ func (s *Store) Get(ctx context.Context, id string) (providers.Config, error) {
 	return c, nil
 }
 
+// Create inserts a provider. A zero SortOrder means "append to the end" — the
+// row gets MAX(sort_order) + 1 so new providers land after existing ones
+// instead of sharing sort_order=0 with the seed defaults and sorting ahead of
+// them by ID. The CASE is computed inside the INSERT so it's atomic w.r.t.
+// concurrent writes.
 func (s *Store) Create(ctx context.Context, c providers.Config) error {
 	if len(c.Params) == 0 {
 		c.Params = json.RawMessage(`{}`)
 	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO providers (id, name, kind, params, sort_order, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, c.ID, c.Name, string(c.Kind), string(c.Params), c.SortOrder, time.Now().Unix())
+		VALUES (?, ?, ?, ?,
+			CASE WHEN ? = 0
+				THEN COALESCE((SELECT MAX(sort_order) FROM providers), 0) + 1
+				ELSE ?
+			END,
+			?)
+	`, c.ID, c.Name, string(c.Kind), string(c.Params), c.SortOrder, c.SortOrder, time.Now().Unix())
 	if err != nil {
 		return fmt.Errorf("insert provider: %w", err)
 	}
@@ -161,10 +171,7 @@ func (s *Store) SeedIfEmpty(ctx context.Context, defaults []providers.Config) er
 	if n > 0 {
 		return nil
 	}
-	for i, c := range defaults {
-		if c.SortOrder == 0 {
-			c.SortOrder = i
-		}
+	for _, c := range defaults {
 		if err := s.Create(ctx, c); err != nil {
 			return err
 		}

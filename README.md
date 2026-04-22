@@ -14,7 +14,7 @@ Aggregates third-party status pages into one dashboard. Backend is Go with [Huma
 
 ```bash
 # One-time: install frontend deps (requires Node 20+)
-cd frontend && npm install --legacy-peer-deps && cd ..
+cd frontend && npm install && cd ..
 
 # Run backend (:8080) and frontend (:5173) in two terminals
 make dev-backend
@@ -30,11 +30,13 @@ Open http://localhost:5173.
 
 Environment variables read by the backend:
 
-| Var                  | Default             | Description                                                                     |
-| -------------------- | ------------------- | ------------------------------------------------------------------------------- |
-| `STATUS_ADDR`        | `:8080`             | HTTP listen address                                                             |
-| `STATUS_DB_PATH`     | `data/providers.db` | SQLite file                                                                     |
-| `STATUS_ADMIN_TOKEN` | _(unset)_           | Bearer token required for mutation endpoints. When unset, mutations return 503. |
+| Var                              | Default             | Description                                                                                       |
+| -------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------- |
+| `STATUS_ADDR`                    | `:8080`             | HTTP listen address                                                                               |
+| `STATUS_DB_PATH`                 | `data/providers.db` | SQLite file                                                                                       |
+| `STATUS_ADMIN_TOKEN`             | _(unset)_           | Bearer token required for mutation endpoints. When unset, mutations return 503.                   |
+| `STATUS_CORS_ORIGIN`             | _(unset)_           | Comma-separated origin allowlist. Unset disables CORS (prod same-origin). Set in dev for `:5173`. |
+| `STATUS_ALLOW_PRIVATE_NETWORKS`  | `false`             | Allow outbound fetches to loopback/RFC1918/link-local. Enable only for internal status pages.     |
 
 Reads (`/api/overview`, `/api/providers/{id}`) are always public.
 
