@@ -48,15 +48,18 @@ async function request<T>(
 	}
 	const res = await fetch(BASE + path, { ...init, headers });
 	if (!res.ok) {
-		let message = res.statusText;
+		let title = res.statusText;
 		let detail: string | undefined;
 		try {
 			const body = await res.json();
-			message = body.title || body.detail || message;
-			detail = body.detail;
+			if (typeof body?.title === 'string') title = body.title;
+			if (typeof body?.detail === 'string') detail = body.detail;
 		} catch {
 			// ignore
 		}
+		// Prefer the detail (e.g. "feed_url is required") — the title is
+		// usually the generic HTTP phrase. Fall back to the title if no detail.
+		const message = detail ? `${title}: ${detail}` : title;
 		throw new APIError(res.status, message, detail);
 	}
 	if (res.status === 204) return undefined as T;

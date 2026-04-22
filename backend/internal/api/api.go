@@ -296,7 +296,7 @@ func (s *Server) createProvider(ctx context.Context, in *CreateProviderInput) (*
 	if err := s.checkAdmin(in.Authorization); err != nil {
 		return nil, err
 	}
-	cfg, err := s.validateAndPrepare(ctx, in.Body, true)
+	cfg, err := s.prepareConfig(ctx, in.Body, true)
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +336,7 @@ func (s *Server) updateProvider(ctx context.Context, in *UpdateProviderInput) (*
 	}
 	body := in.Body
 	body.ID = in.ID
-	cfg, err := s.validateAndPrepare(ctx, body, false)
+	cfg, err := s.prepareConfig(ctx, body, false)
 	if err != nil {
 		return nil, err
 	}
@@ -499,7 +499,10 @@ func normalizeConfig(b ProviderBody, allowDeriveID bool) (providers.Config, erro
 	return cfg, nil
 }
 
-func (s *Server) validateAndPrepare(ctx context.Context, b ProviderBody, allowDeriveID bool) (providers.Config, error) {
+// prepareConfig normalizes the body and runs a schema-only check via
+// factory.Build. Network reachability is out of scope here — use the dedicated
+// /api/providers/validate endpoint for that.
+func (s *Server) prepareConfig(_ context.Context, b ProviderBody, allowDeriveID bool) (providers.Config, error) {
 	cfg, err := normalizeConfig(b, allowDeriveID)
 	if err != nil {
 		return cfg, huma.Error400BadRequest(err.Error())
@@ -508,8 +511,8 @@ func (s *Server) validateAndPrepare(ctx context.Context, b ProviderBody, allowDe
 	if err != nil {
 		return cfg, huma.Error400BadRequest(err.Error())
 	}
-	if err := factory.Validate(ctx, cfg); err != nil {
-		return cfg, huma.Error400BadRequest("validation failed: " + err.Error())
+	if _, err := factory.Build(cfg); err != nil {
+		return cfg, huma.Error400BadRequest(err.Error())
 	}
 	return cfg, nil
 }

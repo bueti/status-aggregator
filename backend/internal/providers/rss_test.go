@@ -2,6 +2,42 @@ package providers
 
 import "testing"
 
+func TestNormalizeHTTPURL(t *testing.T) {
+	cases := []struct {
+		in      string
+		want    string
+		wantErr bool
+	}{
+		{in: "https://example.com/feed.rss", want: "https://example.com/feed.rss"},
+		{in: "http://example.com/feed.rss", want: "http://example.com/feed.rss"},
+		{in: " https://example.com/feed.rss ", want: "https://example.com/feed.rss"},
+		{in: "example.com/feed.rss", want: "https://example.com/feed.rss"},
+		{in: "status.auth0.com/rss?domain=x.y.z", want: "https://status.auth0.com/rss?domain=x.y.z"},
+		{in: "//example.com/feed", want: "https://example.com/feed"},
+		{in: "", wantErr: true},
+		{in: "   ", wantErr: true},
+		{in: "ftp://example.com/feed", wantErr: true},
+		{in: "://nope", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.in, func(t *testing.T) {
+			got, err := normalizeHTTPURL(tc.in)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("want error, got %q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestClassifyFeedEntry(t *testing.T) {
 	cases := []struct {
 		name     string

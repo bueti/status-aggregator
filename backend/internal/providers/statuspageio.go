@@ -41,12 +41,13 @@ func (p statuspageIOParams) summaryURL() (string, error) {
 	if p.BaseURL == "" {
 		return "", fmt.Errorf("base_url is required")
 	}
-	u, err := url.Parse(strings.TrimRight(p.BaseURL, "/"))
+	base, err := normalizeHTTPURL(p.BaseURL)
 	if err != nil {
-		return "", fmt.Errorf("invalid base_url: %w", err)
+		return "", fmt.Errorf("base_url: %w", err)
 	}
-	if u.Scheme == "" || u.Host == "" {
-		return "", fmt.Errorf("base_url must be absolute (scheme + host)")
+	u, err := url.Parse(strings.TrimRight(base, "/"))
+	if err != nil {
+		return "", fmt.Errorf("base_url: %w", err)
 	}
 	u.Path = strings.TrimRight(u.Path, "/") + "/api/v2/summary.json"
 	return u.String(), nil

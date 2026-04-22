@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -111,10 +112,38 @@ func (f *rssFactory) parse(cfg Config) (rssParams, error) {
 	if err := json.Unmarshal(cfg.Params, &p); err != nil {
 		return p, fmt.Errorf("invalid params: %w", err)
 	}
-	if strings.TrimSpace(p.FeedURL) == "" {
-		return p, fmt.Errorf("feed_url is required")
+	normalized, err := normalizeHTTPURL(p.FeedURL)
+	if err != nil {
+		return p, fmt.Errorf("feed_url: %w", err)
 	}
+	p.FeedURL = normalized
 	return p, nil
+}
+
+// normalizeHTTPURL trims whitespace, auto-prepends https:// to scheme-less
+// input (the common paste-a-bare-hostname case), and rejects anything that
+// doesn't end up as a valid http(s) URL with a host.
+func normalizeHTTPURL(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "", fmt.Errorf("is required")
+	}
+	// "//host/path" (scheme-relative) and "host/path" (bare) both become
+	// https://host/path. A real http:// or https:// prefix is left alone.
+	if !strings.Contains(s, "://") {
+		s = "https://" + strings.TrimPrefix(s, "//")
+	}
+	u, err := url.Parse(s)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL: %w", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", fmt.Errorf("must be http or https (got %q)", u.Scheme)
+	}
+	if u.Host == "" {
+		return "", fmt.Errorf("must include a host")
+	}
+	return u.String(), nil
 }
 
 func (f *rssFactory) Build(cfg Config) (Provider, error) {
