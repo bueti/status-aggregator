@@ -101,5 +101,4 @@ type Factory interface {
 	Label() string
 	Fields() []ParamField
 	Build(cfg Config) (Provider, error)
-	Validate(ctx context.Context, cfg Config) error
 }

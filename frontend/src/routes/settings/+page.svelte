@@ -37,6 +37,20 @@
 
 	const currentKind = $derived(kinds.find((k) => k.kind === form.kind));
 
+	// Save requires the current form to match the last validated fingerprint.
+	let lastValidatedFingerprint = $state('');
+	const currentFingerprint = $derived(
+		JSON.stringify({
+			name: form.name.trim(),
+			id: form.id.trim(),
+			kind: form.kind,
+			params: form.params
+		})
+	);
+	const isValidated = $derived(
+		form.validated !== null && lastValidatedFingerprint === currentFingerprint
+	);
+
 	async function loadAll() {
 		listError = '';
 		try {
@@ -78,8 +92,11 @@
 		form.busy = true;
 		form.error = '';
 		form.validated = null;
+		lastValidatedFingerprint = '';
 		try {
+			const fp = currentFingerprint;
 			form.validated = await api.validateProvider(buildBody());
+			lastValidatedFingerprint = fp;
 		} catch (e) {
 			form.error = (e as Error).message;
 		} finally {
@@ -94,6 +111,7 @@
 			await api.createProvider(buildBody());
 			form.name = '';
 			form.id = '';
+			lastValidatedFingerprint = '';
 			resetParams();
 			await loadAll();
 		} catch (e) {
@@ -269,9 +287,13 @@
 				{form.error}
 			</div>
 		{/if}
-		{#if form.validated}
+		{#if isValidated && form.validated}
 			<div class="rounded-md border border-ok/30 bg-ok/10 p-2 text-xs text-ok">
 				Connected · {form.validated.description || form.validated.indicator}
+			</div>
+		{:else if form.validated}
+			<div class="rounded-md border border-minor/30 bg-minor/10 p-2 text-xs text-minor">
+				Form changed since last test. Re-run Test connection before saving.
 			</div>
 		{/if}
 
@@ -281,6 +303,10 @@
 			>
 				Enter your admin token above to enable Test &amp; Save.
 			</div>
+		{:else if !isValidated && form.name && !form.error}
+			<p class="text-xs text-white/50">
+				Test connection first to enable Save.
+			</p>
 		{/if}
 
 		<div class="flex gap-2">
@@ -294,7 +320,7 @@
 			</button>
 			<button
 				type="submit"
-				disabled={!hasToken || form.busy || !form.name}
+				disabled={!hasToken || form.busy || !form.name || !isValidated}
 				class="rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/90 disabled:opacity-40"
 			>
 				{form.busy ? 'Saving…' : 'Save provider'}

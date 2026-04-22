@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 )
@@ -38,15 +37,9 @@ type statuspageIOParams struct {
 }
 
 func (p statuspageIOParams) summaryURL() (string, error) {
-	if p.BaseURL == "" {
-		return "", fmt.Errorf("base_url is required")
-	}
-	u, err := url.Parse(strings.TrimRight(p.BaseURL, "/"))
+	u, err := parseHTTPURL("base_url", p.BaseURL)
 	if err != nil {
-		return "", fmt.Errorf("invalid base_url: %w", err)
-	}
-	if u.Scheme == "" || u.Host == "" {
-		return "", fmt.Errorf("base_url must be absolute (scheme + host)")
+		return "", err
 	}
 	u.Path = strings.TrimRight(u.Path, "/") + "/api/v2/summary.json"
 	return u.String(), nil
@@ -60,9 +53,11 @@ func (f *statuspageIOFactory) parse(cfg Config) (statuspageIOParams, error) {
 	if err := json.Unmarshal(cfg.Params, &p); err != nil {
 		return p, fmt.Errorf("invalid params: %w", err)
 	}
-	if _, err := p.summaryURL(); err != nil {
+	u, err := parseHTTPURL("base_url", p.BaseURL)
+	if err != nil {
 		return p, err
 	}
+	p.BaseURL = u.String()
 	return p, nil
 }
 
@@ -71,16 +66,12 @@ func (f *statuspageIOFactory) Build(cfg Config) (Provider, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &statuspageIOProvider{cfg: cfg, params: p, client: sharedHTTP}, nil
-}
-
-func (f *statuspageIOFactory) Validate(ctx context.Context, cfg Config) error {
-	p, err := f.parse(cfg)
+	raw, err := json.Marshal(p)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("marshal params: %w", err)
 	}
-	_, err = fetchSummary(ctx, sharedHTTP, p)
-	return err
+	cfg.Params = raw
+	return &statuspageIOProvider{cfg: cfg, params: p, client: sharedHTTP}, nil
 }
 
 type statuspageIOProvider struct {
