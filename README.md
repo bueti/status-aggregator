@@ -1,6 +1,14 @@
 # Status Aggregator
 
-Aggregates third-party status pages (GitHub, depot.dev, Grafana Cloud, Cloudflare, Vercel, and any other Statuspage.io source) into one dashboard. Backend is Go with [Huma](https://huma.rocks); frontend is SvelteKit with Svelte 5 runes.
+Aggregates third-party status pages into one dashboard. Backend is Go with [Huma](https://huma.rocks); frontend is SvelteKit with Svelte 5 runes.
+
+## Supported feed kinds
+
+| Kind            | Label            | Use for                                                      |
+| --------------- | ---------------- | ------------------------------------------------------------ |
+| `statuspage_io` | Statuspage.io    | GitHub, Cloudflare, Vercel, Atlassian, and any other Statuspage.io-hosted page |
+| `rss`           | RSS / Atom feed  | Pages that publish incidents as a feed — Slack, Google Workspace, etc. |
+| `auth0`         | Auth0            | https://status.auth0.com (scrapes the embedded Next.js payload) |
 
 ## Quick start
 
@@ -39,6 +47,7 @@ Two ways:
 **Via curl:**
 
 ```bash
+# Statuspage.io
 curl -X POST http://localhost:8080/api/providers \
   -H "Authorization: Bearer $STATUS_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
@@ -47,21 +56,37 @@ curl -X POST http://localhost:8080/api/providers \
     "kind": "statuspage_io",
     "params": {"base_url": "https://status.atlassian.com"}
   }'
+
+# RSS / Atom
+curl -X POST http://localhost:8080/api/providers \
+  -H "Authorization: Bearer $STATUS_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Slack",
+    "kind": "rss",
+    "params": {"feed_url": "https://slack-status.com/feed/rss", "active_hours": "24"}
+  }'
+
+# Auth0 (no params)
+curl -X POST http://localhost:8080/api/providers \
+  -H "Authorization: Bearer $STATUS_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Auth0", "kind": "auth0", "params": {}}'
 ```
 
 The five most common Statuspage.io pages (GitHub, depot.dev, Grafana Cloud, Cloudflare, Vercel) are seeded on first run.
 
 ## Adding a new feed kind
 
-Not every status page uses Statuspage.io — AWS uses RSS, Google Cloud uses a custom JSON endpoint, etc. To support a new format:
+Not every status page uses one of the built-in shapes. To add another:
 
 1. Create `backend/internal/providers/<yourfeed>.go`.
-2. Implement the `providers.Factory` interface (`Kind`, `Label`, `Fields`, `Build`, `Validate`) and a `providers.Provider` (`Config`, `Fetch`).
+2. Implement the `providers.Factory` interface (`Kind`, `Label`, `Fields`, `Build`) and a `providers.Provider` (`Config`, `Fetch`).
 3. Call `providers.Register(&yourFactory{})` from an `init()`.
 
 The web UI's "Add provider" form automatically discovers your new kind via `GET /api/feed-kinds` and renders the form fields you declared.
 
-The existing `statuspageio.go` is the reference implementation.
+Reference implementations: `statuspageio.go` (single URL param, JSON API), `rss.go` (multi-param, XML feed with classification heuristics), `auth0.go` (zero-param scraper for a fixed endpoint).
 
 ## Regenerating frontend types
 
@@ -126,4 +151,4 @@ See `charts/status-aggregator/values.yaml` for the full set of knobs.
 
 ## Out of scope for v1
 
-Auth beyond the single admin token · notifications · historical uptime graphs · non-Statuspage feed kinds (extend the registry to add RSS / custom JSON).
+Auth beyond the single admin token · notifications · historical uptime graphs.

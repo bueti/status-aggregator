@@ -112,6 +112,9 @@ jobs:
             echo "::error::tag ${GITHUB_REF_NAME} is not on main"
             exit 1
           fi
+      - name: Compute version
+        id: version
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           generate_release_notes: true
@@ -120,11 +123,11 @@ jobs:
           body: |
             ## Artifacts
 
-            - Docker image: `ghcr.io/${{ github.repository }}:${{ github.ref_name }}`
-            - Helm chart: `oci://ghcr.io/${{ github.repository_owner }}/charts/status-aggregator --version ${{ github.ref_name }}`
+            - Docker image: `ghcr.io/${{ github.repository }}:${{ steps.version.outputs.value }}`
+            - Helm chart: `oci://ghcr.io/${{ github.repository_owner }}/charts/status-aggregator --version ${{ steps.version.outputs.value }}`
 
             ```bash
             helm install status \
               oci://ghcr.io/${{ github.repository_owner }}/charts/status-aggregator \
-              --version ${GITHUB_REF_NAME#v}
+              --version ${{ steps.version.outputs.value }}
             ```
