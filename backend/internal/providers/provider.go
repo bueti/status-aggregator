@@ -57,6 +57,7 @@ type Config struct {
 	Kind      Kind            `json:"kind"`
 	Params    json.RawMessage `json:"params"`
 	SortOrder int             `json:"sort_order"`
+	CreatedAt time.Time       `json:"created_at"`
 }
 
 type Component struct {

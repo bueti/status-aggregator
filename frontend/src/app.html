@@ -4,6 +4,24 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+		<script>
+			// Applied before paint to avoid a light/dark flash. Mirrors the logic
+			// in $lib/theme.svelte.ts — keep these in sync.
+			(function () {
+				try {
+					var pref = localStorage.getItem('status-agg.theme') || 'system';
+					var resolved =
+						pref === 'system'
+							? window.matchMedia('(prefers-color-scheme: dark)').matches
+								? 'dark'
+								: 'light'
+							: pref;
+					document.documentElement.setAttribute('data-theme', resolved);
+				} catch (e) {
+					document.documentElement.setAttribute('data-theme', 'dark');
+				}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

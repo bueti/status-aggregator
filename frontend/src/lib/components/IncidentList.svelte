@@ -14,12 +14,12 @@
 </script>
 
 {#if list.length === 0}
-	<p class="text-sm text-white/50">No active incidents.</p>
+	<p class="text-sm text-fg-muted">No active incidents.</p>
 {:else}
 	<ul class="flex flex-col gap-3">
 		{#each list as inc (inc.id)}
 			<li
-				class="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3 sm:flex-row sm:items-start sm:justify-between"
+				class="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3 sm:flex-row sm:items-start sm:justify-between"
 			>
 				<div class="min-w-0">
 					<div class="flex items-center gap-2">
@@ -33,7 +33,7 @@
 							{inc.name}
 						</a>
 					</div>
-					<div class="mt-1 text-xs text-white/40">Updated {fmt(inc.updated_at)}</div>
+					<div class="mt-1 text-xs text-fg-subtle">Updated {fmt(inc.updated_at)}</div>
 				</div>
 			</li>
 		{/each}

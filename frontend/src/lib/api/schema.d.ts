@@ -259,6 +259,8 @@ export interface components {
             /** Format: int64 */
             active_incidents: number;
             components: components["schemas"]["Component"][] | null;
+            /** Format: date-time */
+            created_at: string;
             description: string;
             err?: string;
             /** Format: date-time */
@@ -277,6 +279,8 @@ export interface components {
         ProviderSummary: {
             /** Format: int64 */
             active_incidents: number;
+            /** Format: date-time */
+            created_at: string;
             description: string;
             err?: string;
             /** Format: date-time */

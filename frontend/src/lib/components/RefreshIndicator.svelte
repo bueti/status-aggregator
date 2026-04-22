@@ -30,7 +30,7 @@
 	type="button"
 	onclick={onrefresh}
 	disabled={loading}
-	class="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition hover:bg-white/10 disabled:opacity-60"
+	class="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-fg-muted transition hover:bg-surface-hover disabled:opacity-60"
 >
 	<span
 		class="inline-block h-1.5 w-1.5 rounded-full"
