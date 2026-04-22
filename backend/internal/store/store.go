@@ -59,7 +59,7 @@ func (s *Store) Count(ctx context.Context) (int, error) {
 
 func (s *Store) List(ctx context.Context) ([]providers.Config, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, name, kind, params, sort_order
+		SELECT id, name, kind, params, sort_order, created_at
 		FROM providers
 		ORDER BY sort_order, id
 	`)
@@ -71,13 +71,14 @@ func (s *Store) List(ctx context.Context) ([]providers.Config, error) {
 	var out []providers.Config
 	for rows.Next() {
 		var c providers.Config
-		var kind string
-		var params string
-		if err := rows.Scan(&c.ID, &c.Name, &kind, &params, &c.SortOrder); err != nil {
+		var kind, params string
+		var createdAt int64
+		if err := rows.Scan(&c.ID, &c.Name, &kind, &params, &c.SortOrder, &createdAt); err != nil {
 			return nil, err
 		}
 		c.Kind = providers.Kind(kind)
 		c.Params = json.RawMessage(params)
+		c.CreatedAt = time.Unix(createdAt, 0).UTC()
 		out = append(out, c)
 	}
 	return out, rows.Err()
@@ -86,9 +87,10 @@ func (s *Store) List(ctx context.Context) ([]providers.Config, error) {
 func (s *Store) Get(ctx context.Context, id string) (providers.Config, error) {
 	var c providers.Config
 	var kind, params string
+	var createdAt int64
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, name, kind, params, sort_order FROM providers WHERE id = ?
-	`, id).Scan(&c.ID, &c.Name, &kind, &params, &c.SortOrder)
+		SELECT id, name, kind, params, sort_order, created_at FROM providers WHERE id = ?
+	`, id).Scan(&c.ID, &c.Name, &kind, &params, &c.SortOrder, &createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return c, ErrNotFound
 	}
@@ -97,6 +99,7 @@ func (s *Store) Get(ctx context.Context, id string) (providers.Config, error) {
 	}
 	c.Kind = providers.Kind(kind)
 	c.Params = json.RawMessage(params)
+	c.CreatedAt = time.Unix(createdAt, 0).UTC()
 	return c, nil
 }
 

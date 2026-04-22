@@ -38,7 +38,7 @@
 </script>
 
 <div class="mb-4 flex items-center gap-3 text-sm">
-	<a href="/" class="text-white/60 hover:text-white">← Overview</a>
+	<a href="/" class="text-fg-muted hover:text-fg">← Overview</a>
 </div>
 
 {#if error}
@@ -54,13 +54,13 @@
 				<h1 class="text-2xl font-semibold">{data.name}</h1>
 				<StatusBadge indicator={data.indicator} />
 			</div>
-			<p class="mt-1 text-white/60">{data.description || '—'}</p>
+			<p class="mt-1 text-fg-muted">{data.description || '—'}</p>
 			{#if data.url}
 				<a
 					href={data.url}
 					target="_blank"
 					rel="noreferrer"
-					class="mt-1 inline-block text-xs text-white/40 hover:text-white/70"
+					class="mt-1 inline-block text-xs text-fg-subtle hover:text-fg-muted"
 				>
 					{data.url} ↗
 				</a>
@@ -73,23 +73,23 @@
 	</div>
 
 	<section class="mt-8">
-		<h2 class="mb-3 text-sm font-semibold tracking-wide text-white/60 uppercase">
+		<h2 class="mb-3 text-sm font-semibold tracking-wide text-fg-muted uppercase">
 			Active incidents
 		</h2>
 		<IncidentList incidents={data.incidents ?? []} />
 	</section>
 
 	<section class="mt-8">
-		<h2 class="mb-3 text-sm font-semibold tracking-wide text-white/60 uppercase">
+		<h2 class="mb-3 text-sm font-semibold tracking-wide text-fg-muted uppercase">
 			Components
 		</h2>
 		{#if (data.components ?? []).length === 0}
-			<p class="text-sm text-white/50">No components reported.</p>
+			<p class="text-sm text-fg-muted">No components reported.</p>
 		{:else}
 			<ul class="grid gap-2 sm:grid-cols-2">
 				{#each data.components ?? [] as c, i (i)}
 					<li
-						class="flex items-center justify-between rounded-md border border-white/10 bg-white/5 px-3 py-2"
+						class="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2"
 					>
 						<span class="truncate">{c.name}</span>
 						<StatusBadge indicator={c.status} size="sm" />
@@ -100,7 +100,7 @@
 	</section>
 {:else if loading}
 	<div class="space-y-3">
-		<div class="h-8 w-64 animate-pulse rounded bg-white/5"></div>
-		<div class="h-4 w-96 animate-pulse rounded bg-white/5"></div>
+		<div class="h-8 w-64 animate-pulse rounded bg-surface"></div>
+		<div class="h-4 w-96 animate-pulse rounded bg-surface"></div>
 	</div>
 {/if}

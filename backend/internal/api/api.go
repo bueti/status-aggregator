@@ -107,6 +107,7 @@ type ProviderSummary struct {
 	Indicator       providers.Indicator `json:"indicator"`
 	Description     string              `json:"description"`
 	FetchedAt       time.Time           `json:"fetched_at"`
+	CreatedAt       time.Time           `json:"created_at"`
 	Stale           bool                `json:"stale"`
 	ActiveIncidents int                 `json:"active_incidents"`
 	Err             string              `json:"err,omitempty"`
@@ -134,6 +135,7 @@ func (s *Server) toSummary(e *aggregator.Entry) ProviderSummary {
 		Indicator:       snap.Indicator,
 		Description:     snap.Description,
 		FetchedAt:       snap.FetchedAt,
+		CreatedAt:       e.Config.CreatedAt,
 		Stale:           stale,
 		ActiveIncidents: len(snap.Incidents),
 		Err:             snap.Err,
