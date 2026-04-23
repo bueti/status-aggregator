@@ -74,6 +74,34 @@ func TestSummaryToStatusKeepsPageRollupWhenWorse(t *testing.T) {
 	}
 }
 
+func TestSummaryToStatusSkipsNonShowcaseComponents(t *testing.T) {
+	// GitHub's summary.json carries a marketing placeholder row with
+	// showcase=false ("Visit www.githubstatus.com for more information").
+	// Statuspage hides those from its own public page; we should too.
+	s := &statuspageSummary{}
+	s.Status.Indicator = "none"
+	s.Status.Description = "All Systems Operational"
+	s.Components = append(s.Components, struct {
+		Name     string `json:"name"`
+		Status   string `json:"status"`
+		Showcase bool   `json:"showcase"`
+	}{Name: "Git Operations", Status: "operational", Showcase: true})
+	s.Components = append(s.Components, struct {
+		Name     string `json:"name"`
+		Status   string `json:"status"`
+		Showcase bool   `json:"showcase"`
+	}{Name: "Visit www.githubstatus.com for more information", Status: "operational", Showcase: false})
+
+	out := summaryToStatus(s)
+
+	if len(out.Components) != 1 {
+		t.Fatalf("components = %d, want 1 (non-showcase must be skipped)", len(out.Components))
+	}
+	if out.Components[0].Name != "Git Operations" {
+		t.Errorf("kept wrong component: %q", out.Components[0].Name)
+	}
+}
+
 func TestSummaryToStatusSkipsResolvedIncidents(t *testing.T) {
 	// A resolved incident must not trigger the upgrade path.
 	now := time.Now()
