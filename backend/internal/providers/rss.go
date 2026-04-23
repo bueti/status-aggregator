@@ -384,7 +384,9 @@ var (
 // "we are working to resolve this".
 var resolutionBodyRE = regexp.MustCompile(
 	`(?i)\b(` +
-		`(has|have) been (resolved|fixed|mitigated|restored)|` +
+		// "self-" and "auto-" prefixes (and the occasional Slack-style
+		// "self- resolved" with a stray space) shouldn't hide resolution.
+		`(has|have) been (self[-\s]+|auto[-\s]+)?(resolved|fixed|mitigated|restored)|` +
 		`is (now|fully) (resolved|operational|restored)|` +
 		`issue (has been )?resolved|` +
 		`incident (has been |is now )?resolved|` +

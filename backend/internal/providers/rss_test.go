@@ -143,6 +143,30 @@ func TestClassifyFeedEntry(t *testing.T) {
 			want:     IndicatorOperational,
 			resolved: true,
 		},
+		{
+			// Slack RSS edge case: the body literally says "self- resolved"
+			// with a stray space after the hyphen. The "has been X" branch
+			// must allow a self-/auto- prefix (and that stray whitespace).
+			name:     "slack self-resolved with stray space",
+			title:    "Incident: Slack Threads Not Loading",
+			body:     "Further investigation confirms that the issue impacting Thread loading has been self- resolved, and our team will continue to investigate.",
+			want:     IndicatorOperational,
+			resolved: true,
+		},
+		{
+			name:     "self-resolved, no space",
+			title:    "Incident: Whatever",
+			body:     "The problem has been self-resolved after the next job ran.",
+			want:     IndicatorOperational,
+			resolved: true,
+		},
+		{
+			name:     "auto-resolved",
+			title:    "Incident: Whatever",
+			body:     "This has been auto-resolved by the retry layer.",
+			want:     IndicatorOperational,
+			resolved: true,
+		},
 	}
 
 	for _, tc := range cases {
