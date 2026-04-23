@@ -27,6 +27,9 @@ import (
 // stream megabytes into the decoder.
 const defaultMaxBodyBytes int64 = 64 << 10
 
+// Set at link time via -ldflags "-X main.version=..." (see Dockerfile).
+var version = "dev"
+
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
@@ -75,7 +78,7 @@ func main() {
 		logger.Info("CORS enabled", "origins", corsOriginList(corsOrigins))
 	}
 
-	humaCfg := huma.DefaultConfig("Status Aggregator", "0.1.0")
+	humaCfg := huma.DefaultConfig("Status Aggregator", version)
 	humaCfg.Info.Description = "Aggregates third-party Statuspage.io feeds (GitHub, depot.dev, Grafana Cloud, etc.)."
 	humaAPI := humachi.New(router, humaCfg)
 
@@ -83,6 +86,7 @@ func main() {
 		Agg:        agg,
 		Store:      s,
 		AdminToken: adminToken,
+		Version:    version,
 	}
 	server.Register(humaAPI)
 

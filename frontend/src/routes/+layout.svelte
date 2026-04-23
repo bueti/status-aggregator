@@ -1,8 +1,10 @@
 <script lang="ts">
 	import '../app.css';
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { createTheme } from '$lib/theme.svelte';
+	import { api } from '$lib/api/client';
 
 	let { children } = $props();
 
@@ -13,6 +15,22 @@
 
 	const current = $derived(page.url.pathname);
 	const theme = createTheme();
+
+	let version = $state('');
+	// Unreleased builds report "dev"; tagged builds report a bare semver
+	// (e.g. "0.5.1") which we prefix with "v" for display.
+	const versionLabel = $derived(
+		version ? (version === 'dev' ? 'dev' : `v${version}`) : ''
+	);
+
+	onMount(async () => {
+		try {
+			const r = await api.version();
+			version = r.version;
+		} catch {
+			// Footer degrades gracefully when the API is unreachable.
+		}
+	});
 
 	function isActive(href: string) {
 		if (href === '/') return current === '/';
@@ -49,7 +67,11 @@
 	</main>
 	<footer class="mt-12 border-t border-border">
 		<div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4 text-xs text-fg-subtle">
-			<span>Status Aggregator</span>
+			<span>
+				Status Aggregator{#if versionLabel}
+					<span class="ml-1 font-mono text-fg-muted">{versionLabel}</span>
+				{/if}
+			</span>
 			<a
 				href="https://github.com/bueti/status-aggregator"
 				target="_blank"
