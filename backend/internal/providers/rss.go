@@ -213,6 +213,9 @@ type rssEnvelope struct {
 			GUID        string `xml:"guid"`
 			PubDate     string `xml:"pubDate"`
 			Description string `xml:"description"`
+			// <content:encoded> carries the full HTML body on Statuspage.io-style
+			// feeds (Auth0, etc.); <description> is often empty in that case.
+			Encoded string `xml:"http://purl.org/rss/1.0/modules/content/ encoded"`
 		} `xml:"item"`
 	} `xml:"channel"`
 }
@@ -274,7 +277,7 @@ func parseFeed(body []byte) (*parsedFeed, error) {
 				ID:      firstNonEmpty(it.GUID, it.Link, it.Title),
 				Title:   normalizeText(it.Title),
 				Link:    strings.TrimSpace(it.Link),
-				Body:    it.Description,
+				Body:    firstNonEmpty(it.Encoded, it.Description),
 				Updated: parseFeedTime(it.PubDate),
 			})
 		}

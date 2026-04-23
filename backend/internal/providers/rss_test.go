@@ -2,6 +2,37 @@ package providers
 
 import "testing"
 
+func TestParseFeedContentEncoded(t *testing.T) {
+	// Auth0's /rss?domain=... feed uses <content:encoded> for the incident
+	// narrative and emits no <description>. The parser must read the namespaced
+	// element, otherwise the body-based resolution heuristic can't fire and
+	// already-resolved incidents look active.
+	body := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Auth0 Status</title>
+    <link>https://status.auth0.com/</link>
+    <item>
+      <title>Elevated Errors on Public Cloud Environments</title>
+      <link>https://status.auth0.com/incidents/abc</link>
+      <guid>abc</guid>
+      <pubDate>Wed, 22 Apr 2026 20:15:12 GMT</pubDate>
+      <content:encoded><![CDATA[<p><strong>Resolved</strong> - services have been restored.</p>]]></content:encoded>
+    </item>
+  </channel>
+</rss>`)
+	feed, err := parseFeed(body)
+	if err != nil {
+		t.Fatalf("parseFeed: %v", err)
+	}
+	if len(feed.Entries) != 1 {
+		t.Fatalf("entries = %d, want 1", len(feed.Entries))
+	}
+	if feed.Entries[0].Body == "" {
+		t.Fatalf("entry body is empty; expected content:encoded to be read")
+	}
+}
+
 func TestParseHTTPURL(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -100,6 +131,15 @@ func TestClassifyFeedEntry(t *testing.T) {
 			name:     "body says 'fully caught up' (slack postmortem idiom)",
 			title:    "Incident: Search backlog",
 			body:     "The service was fully caught up and returning all results by 4:19 PM PDT.",
+			want:     IndicatorOperational,
+			resolved: true,
+		},
+		{
+			// Auth0 RSS: title stays plain, body is HTML from content:encoded
+			// with the most recent update marked <strong>Resolved</strong>.
+			name:     "auth0 html body with resolved update",
+			title:    "Elevated Errors on Public Cloud Environments",
+			body:     `<p><small>Apr 22, 20:14 UTC</small><br><strong>Resolved</strong> - Customers experienced service disruption due to a DNS misconfiguration. This issue was resolved after the misconfiguration was manually corrected. We monitored the environment to ensure stability and confirmed that services have been restored.</p><p><small>Apr 22, 19:55 UTC</small><br><strong>Investigating</strong> - We are currently investigating an incident.</p>`,
 			want:     IndicatorOperational,
 			resolved: true,
 		},
