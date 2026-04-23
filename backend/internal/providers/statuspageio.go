@@ -159,18 +159,36 @@ func summaryToStatus(s *statuspageSummary) Status {
 			Status: mapComponentStatus(c.Status),
 		})
 	}
+	worstIncident := IndicatorOperational
 	for _, inc := range s.Incidents {
 		if inc.Resolved != nil {
 			continue
+		}
+		impact := mapIndicator(inc.Impact)
+		if impact.Rank() > worstIncident.Rank() {
+			worstIncident = impact
 		}
 		out.Incidents = append(out.Incidents, Incident{
 			ID:        inc.ID,
 			Name:      inc.Name,
 			Status:    inc.Status,
-			Impact:    mapIndicator(inc.Impact),
+			Impact:    impact,
 			URL:       inc.Shortlink,
 			UpdatedAt: inc.UpdatedAt,
 		})
+	}
+	// Statuspage's page-level rollup (status.indicator / status.description)
+	// can lag behind a freshly opened incident — operators haven't bumped it
+	// yet. When the active-incident list is worse than the rollup claims,
+	// trust the incidents so the UI doesn't say "All Systems Operational"
+	// while carrying a live critical event.
+	if worstIncident.Rank() > out.Indicator.Rank() {
+		out.Indicator = worstIncident
+		if n := len(out.Incidents); n == 1 {
+			out.Description = "1 active incident"
+		} else {
+			out.Description = fmt.Sprintf("%d active incidents", n)
+		}
 	}
 	return out
 }
