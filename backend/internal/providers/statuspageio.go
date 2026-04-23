@@ -101,8 +101,9 @@ type statuspageSummary struct {
 		Description string `json:"description"`
 	} `json:"status"`
 	Components []struct {
-		Name   string `json:"name"`
-		Status string `json:"status"`
+		Name     string `json:"name"`
+		Status   string `json:"status"`
+		Showcase bool   `json:"showcase"`
 	} `json:"components"`
 	Incidents []struct {
 		ID        string     `json:"id"`
@@ -154,6 +155,12 @@ func summaryToStatus(s *statuspageSummary) Status {
 		FetchedAt:   time.Now().UTC(),
 	}
 	for _, c := range s.Components {
+		// showcase=false rows are hidden on the source's own public page —
+		// they're typically marketing/link placeholders (e.g. GitHub's
+		// "Visit www.githubstatus.com for more information"), not services.
+		if !c.Showcase {
+			continue
+		}
 		out.Components = append(out.Components, Component{
 			Name:   c.Name,
 			Status: mapComponentStatus(c.Status),
