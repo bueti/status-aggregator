@@ -4,7 +4,8 @@ import type {
 	FeedKindsList,
 	ProviderDetail,
 	ProviderBody,
-	ValidateResult
+	ValidateResult,
+	VersionInfo
 } from './types';
 
 const BASE = '/api';
@@ -68,6 +69,7 @@ async function request<T>(
 
 export const api = {
 	overview: () => request<Overview>('/overview'),
+	version: () => request<VersionInfo>('/version'),
 	provider: (id: string) => request<ProviderDetail>(`/providers/${encodeURIComponent(id)}`),
 	listProviders: () => request<ProvidersList>('/providers'),
 	feedKinds: () => request<FeedKindsList>('/feed-kinds'),

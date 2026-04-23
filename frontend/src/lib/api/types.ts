@@ -24,6 +24,7 @@ export type Overview = S['OverviewOutputBody'];
 export type ProvidersList = S['ListProvidersOutputBody'];
 export type FeedKindsList = S['FeedKindsOutputBody'];
 export type ValidateResult = S['ValidateProviderOutputBody'];
+export type VersionInfo = S['VersionOutputBody'];
 
 export function asIndicator(s: string | undefined | null): Indicator {
 	switch (s) {

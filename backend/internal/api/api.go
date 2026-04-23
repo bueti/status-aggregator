@@ -21,6 +21,7 @@ type Server struct {
 	Agg        *aggregator.Aggregator
 	Store      *store.Store
 	AdminToken string
+	Version    string
 }
 
 func (s *Server) Register(api huma.API) {
@@ -31,6 +32,14 @@ func (s *Server) Register(api huma.API) {
 		Summary:     "Liveness probe",
 		Tags:        []string{"meta"},
 	}, s.healthz)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "get-version",
+		Method:      http.MethodGet,
+		Path:        "/api/version",
+		Summary:     "Build version",
+		Tags:        []string{"meta"},
+	}, s.version)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "get-overview",
@@ -164,6 +173,20 @@ type HealthzOutput struct {
 func (s *Server) healthz(_ context.Context, _ *struct{}) (*HealthzOutput, error) {
 	out := &HealthzOutput{}
 	out.Body.OK = true
+	return out, nil
+}
+
+// --- version ---
+
+type VersionOutput struct {
+	Body struct {
+		Version string `json:"version"`
+	}
+}
+
+func (s *Server) version(_ context.Context, _ *struct{}) (*VersionOutput, error) {
+	out := &VersionOutput{}
+	out.Body.Version = s.Version
 	return out, nil
 }
 
