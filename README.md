@@ -4,11 +4,11 @@ Aggregates third-party status pages into one dashboard. Backend is Go with [Huma
 
 ## Supported feed kinds
 
-| Kind            | Label            | Use for                                                      |
-| --------------- | ---------------- | ------------------------------------------------------------ |
-| `statuspage_io` | Statuspage.io    | GitHub, Cloudflare, Vercel, Atlassian, and any other Statuspage.io-hosted page |
-| `rss`           | RSS / Atom feed  | Pages that publish incidents as a feed — Slack, Google Workspace, etc. |
-| `auth0`         | Auth0            | https://status.auth0.com (scrapes the embedded Next.js payload) |
+| Kind            | Label           | Use for                                                                        |
+| --------------- | --------------- | ------------------------------------------------------------------------------ |
+| `statuspage_io` | Statuspage.io   | GitHub, Cloudflare, Vercel, Atlassian, and any other Statuspage.io-hosted page |
+| `rss`           | RSS / Atom feed | Pages that publish incidents as a feed — Slack, Google Workspace, etc.         |
+| `auth0`         | Auth0           | https://status.auth0.com (scrapes the embedded Next.js payload)                |
 
 ## Quick start
 
@@ -30,13 +30,13 @@ Open http://localhost:5173.
 
 Environment variables read by the backend:
 
-| Var                              | Default             | Description                                                                                       |
-| -------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------- |
-| `STATUS_ADDR`                    | `:8080`             | HTTP listen address                                                                               |
-| `STATUS_DB_PATH`                 | `data/providers.db` | SQLite file                                                                                       |
-| `STATUS_ADMIN_TOKEN`             | _(unset)_           | Bearer token required for mutation endpoints. When unset, mutations return 503.                   |
-| `STATUS_CORS_ORIGIN`             | _(unset)_           | Comma-separated origin allowlist. Unset disables CORS (prod same-origin). Set in dev for `:5173`. |
-| `STATUS_ALLOW_PRIVATE_NETWORKS`  | `false`             | Allow outbound fetches to loopback/RFC1918/link-local. Enable only for internal status pages.     |
+| Var                             | Default             | Description                                                                                       |
+| ------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------- |
+| `STATUS_ADDR`                   | `:8080`             | HTTP listen address                                                                               |
+| `STATUS_DB_PATH`                | `data/providers.db` | SQLite file                                                                                       |
+| `STATUS_ADMIN_TOKEN`            | _(unset)_           | Bearer token required for mutation endpoints. When unset, mutations return 503.                   |
+| `STATUS_CORS_ORIGIN`            | _(unset)_           | Comma-separated origin allowlist. Unset disables CORS (prod same-origin). Set in dev for `:5173`. |
+| `STATUS_ALLOW_PRIVATE_NETWORKS` | `false`             | Allow outbound fetches to loopback/RFC1918/link-local. Enable only for internal status pages.     |
 
 Reads (`/api/overview`, `/api/providers/{id}`) are always public.
 
@@ -150,7 +150,3 @@ helm install status charts/status-aggregator \
 ```
 
 See `charts/status-aggregator/values.yaml` for the full set of knobs.
-
-## Out of scope for v1
-
-Auth beyond the single admin token · notifications · historical uptime graphs.
