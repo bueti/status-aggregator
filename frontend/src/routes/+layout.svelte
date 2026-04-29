@@ -69,7 +69,7 @@
 		<div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4 text-xs text-fg-subtle">
 			<span>
 				Status Aggregator{#if versionLabel}
-					<span class="ml-1 font-mono text-fg-muted">{versionLabel}</span>
+					<span class="ml-1">({versionLabel})</span>
 				{/if}
 			</span>
 			<a
