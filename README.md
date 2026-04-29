@@ -2,6 +2,8 @@
 
 Aggregates third-party status pages into one dashboard. Backend is Go with [Huma](https://huma.rocks); frontend is SvelteKit with Svelte 5 runes.
 
+**Live example:** <https://status.bueti-online.ch>
+
 ## Supported feed kinds
 
 | Kind            | Label           | Use for                                                                        |
